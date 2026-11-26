@@ -32,3 +32,9 @@ Open [http://127.0.0.1:8080/](http://127.0.0.1:8080/) in Chrome or Edge. A fresh
 The kiosk hardware is a **Raspberry Pi 5** with a **CX101PI-C 10.1-inch 1920 × 1200 touchscreen monitor** and integrated Pi case. The [Pi setup guide](docs/configuration.md#raspberry-pi-kiosk-setup) covers Raspberry Pi OS Desktop, Wi-Fi, automatic Chromium launch, and the built-in numeric keypad. The kiosk keeps its settings in a dedicated browser profile.
 
 Airwatch is for hobby plane spotting. Aircraft and weather coverage depend on their sources. See the [data sources and credits](docs/configuration.md#data-sources-and-credits) for coverage, attribution, and provider terms.
+
+## License
+
+The original Airwatch code is available under the [Zero-Clause BSD license (0BSD)](LICENSE). You can use, modify, and redistribute it for any purpose, including commercial use, with no attribution requirement.
+
+Third-party components and bundled datasets retain their own terms. Live traffic feeds and online map layers are subject to their providers’ terms. [Data sources and credits](docs/configuration.md#data-sources-and-credits) · [Leaflet license](public/vendor/leaflet/LICENSE)
