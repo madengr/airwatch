@@ -1,0 +1,26 @@
+EGM96 geoid undulations, worldwide at 1 degree
+
+The original data is the U.S. National Geospatial-Intelligence Agency's public-domain
+EGM96 geoid grid, distributed by the OSGeo PROJ-data project as a 15-minute GeoTIFF.
+
+NGA model information  https://earth-info.nga.mil/?action=wgs84&dir=wgs84
+Source GeoTIFF         https://cdn.proj.org/us_nga_egm96_15.tif
+PROJ-data provenance   https://github.com/OSGeo/PROJ-data/blob/master/us_nga/us_nga_README.txt
+
+The source uses point samples with its first row at 90 N and first column at
+180 W. Keep every fourth row and column, round heights from metres to
+centimetres, and encode as little-endian signed 16-bit integers in row order.
+For example, with Pillow and NumPy, the conversion of the source GeoTIFF is
+`np.rint(np.asarray(Image.open(source), dtype=np.float64)[::4, ::4] * 100).astype('<i2')`.
+
+The resulting grid has 181 latitude rows running north to south and 360
+longitude columns running west to east. The antimeridian is periodic. Airwatch
+bilinearly interpolates the retained nodes and subtracts the geoid undulation
+from the reported WGS 84 ellipsoid height to estimate height above mean sea level.
+Subsampling is suitable for display bands in thousands of feet.
+
+SHA-256 of source `us_nga_egm96_15.tif`
+db493027562c9b004d7220fa881f5603adada4e1c5029b933fa7de4547b0e78d
+
+SHA-256 of `egm96-1deg.bin` (130,320 bytes)
+4a3f0c295cc2c020d520aca6c27238acb6ba73cedbb9914574840c19ea52e0fb

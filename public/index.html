@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0a0b0a">
+  <title>Airwatch · Local air traffic</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div id="kiosk">
+    <header class="masthead">
+      <div class="mast-left">
+        <div class="brand"><strong>Airwatch</strong></div>
+        <nav class="nav-tabs" aria-label="Screens">
+          <button type="button" class="nav-tab" data-screen="radar" aria-controls="screen-radar" aria-current="page">Radar</button>
+          <button type="button" class="nav-tab" data-screen="traffic" aria-controls="screen-traffic">Traffic</button>
+          <button type="button" class="nav-tab" data-screen="settings" aria-controls="screen-settings">Settings</button>
+        </nav>
+      </div>
+      <div class="mast-center">
+        <div class="station">
+          <span class="station-label" id="station-label">MONITORING:</span>
+          <strong id="station-name">Kansas City</strong>
+        </div>
+        <div id="radar-counts" class="radar-counts" role="group" aria-label="Radar aircraft counts">
+          <p><strong id="scope-count">0</strong> aircraft on scope</p>
+          <p id="scope-ring-count">0 within 40 NM</p>
+        </div>
+      </div>
+      <div class="mast-end">
+        <div id="radar-controls" class="map-buttons" role="group" aria-label="Radar controls">
+          <div class="range-control" role="group" aria-label="Radar range">
+            <button id="range-down" type="button" aria-label="Decrease range">−</button>
+            <button id="range-picker" class="range-value" type="button" aria-haspopup="dialog"><strong id="scope-range">40</strong> <span>NM</span></button>
+            <button id="range-up" type="button" aria-label="Increase range">+</button>
+          </div>
+          <button id="vector-toggle" class="soft-button" type="button" aria-pressed="true">1-min Vectors</button>
+          <button id="data-block-toggle" class="soft-button" type="button" aria-pressed="true">Data Blocks</button>
+          <select id="map-style" class="map-layer-select" aria-label="Map background">
+            <option value="radar">Radar Map</option>
+            <option value="imagery">USGS Imagery</option>
+            <option value="vfr">VFR Sectional</option>
+            <option value="ifr-low">IFR Low</option>
+            <option value="ifr-high">IFR High</option>
+          </select>
+          <button id="weather-toggle" class="soft-button" type="button" aria-pressed="false">Weather</button>
+          <select id="aircraft-color-mode" class="map-layer-select" aria-label="Color aircraft by">
+            <option value="altitude">Color: Altitude</option>
+            <option value="speed">Color: Speed</option>
+            <option value="squawk">Color: Squawk</option>
+          </select>
+          <button id="ground-toggle" class="soft-button" type="button" aria-pressed="true" title="Show ground traffic">GROUND</button>
+          <button id="airborne-toggle" class="soft-button" type="button" aria-pressed="true" title="Show airborne traffic">AIRBORNE</button>
+        </div>
+        <div class="mast-right">
+          <div class="feed-state">
+            <div id="feed-badge" class="feed-badge" data-mode="demo" role="status"><i></i><span>Demo</span></div>
+            <span class="feed-age" id="feed-age" role="timer" aria-label="Traffic feed age" title="Time since the last feed update">Age —</span>
+          </div>
+          <div class="clock"><time id="utc-clock">--:--:--</time><span>UTC</span></div>
+          <button type="button" id="fullscreen" class="fullscreen soft-button" title="Full screen" aria-label="Full screen"><span aria-hidden="true"></span></button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="screen-radar" class="screen-screen radar-screen" aria-label="Radar">
+        <div class="scope" aria-label="Nearby air traffic map">
+          <div id="scope-map"></div>
+          <div class="scope-grid" aria-hidden="true"></div>
+          <div id="map-notice" class="map-notice" hidden></div>
+        </div>
+
+        <aside class="radar-side">
+          <section class="detail-panel panel" aria-label="Aircraft Details">
+            <header class="panel-header"><h1>Aircraft Details</h1></header>
+            <div id="flight-details" class="flight-details">
+              <div class="flight-identity"><p class="empty-detail">Waiting for traffic data.</p></div>
+            </div>
+          </section>
+          <section class="near-panel panel" aria-label="Nearby aircraft">
+            <header class="panel-header"><h2 id="near-title">Nearby aircraft</h2><button class="text-button" type="button" data-screen="traffic">View All</button></header>
+            <div class="near-scroll">
+              <div class="near-columns" role="group" aria-label="Sort nearby aircraft">
+                <button class="near-sort" type="button" data-near-sort="time" aria-pressed="true"><span>Time <small>UTC</small></span><span class="near-sort-indicator" aria-hidden="true">▼</span></button>
+                <div class="near-identity">
+                  <button class="near-sort" type="button" data-near-sort="ident" aria-pressed="false">Ident<span class="near-sort-indicator" aria-hidden="true"></span></button>
+                  <span class="near-type-heading">Type</span>
+                </div>
+                <button class="near-sort near-sort-numeric" type="button" data-near-sort="altitude" aria-pressed="false" title="Altitude MSL in hundreds of feet"><span>MSL <small>×100 FT</small></span><span class="near-sort-indicator" aria-hidden="true"></span></button>
+                <button class="near-sort near-sort-numeric" type="button" data-near-sort="altitudeAgl" aria-pressed="false" title="Altitude above the radar center in hundreds of feet"><span>AGL <small>×100 FT</small></span><span class="near-sort-indicator" aria-hidden="true"></span></button>
+                <button class="near-sort near-sort-numeric" type="button" data-near-sort="speed" aria-pressed="false" title="Ground speed in knots"><span>SPD <small>KT</small></span><span class="near-sort-indicator" aria-hidden="true"></span></button>
+                <button class="near-sort near-sort-numeric" type="button" data-near-sort="squawk" aria-pressed="false" title="Squawk code"><span>SQK</span><span class="near-sort-indicator" aria-hidden="true"></span></button>
+                <button class="near-sort near-sort-numeric" type="button" data-near-sort="distance" aria-pressed="false" title="Range from the monitoring center in nautical miles"><span>RNG <small>NM</small></span><span class="near-sort-indicator" aria-hidden="true"></span></button>
+              </div>
+              <div id="near-list" class="near-list"></div>
+            </div>
+          </section>
+          <div class="radar-legend panel" role="group" aria-label="Scope legend">
+            <div class="legend-keys">
+              <div class="motion-key">
+                <span id="vector-key" class="vector-key">1 MIN AHEAD</span>
+                <span class="history-key">PAST POSITIONS</span>
+                <span class="emergency-key">EMERGENCY</span>
+              </div>
+              <div class="legend-color-key" data-color-key="altitude" role="group" aria-label="Altitude colors in hundreds of feet">
+                <span>ALT ×100 FT</span>
+                <div class="legend-values">
+                  <span data-altitude="ground" title="Ground">GND</span>
+                  <span data-altitude="low" data-band-limit>&lt;012</span>
+                  <span data-altitude="mid" data-band-limit>&lt;100</span>
+                  <span data-altitude="high" data-band-limit>&lt;FL180</span>
+                  <span data-altitude="upper" data-band-limit>&lt;FL400</span>
+                  <span data-altitude="cruise" data-band-limit>FL400+</span>
+                </div>
+              </div>
+              <div class="legend-color-key" data-color-key="speed" role="group" aria-label="Ground speed bands in knots">
+                <span>GS KT</span>
+                <div class="legend-values">
+                  <span data-speed-band="ground" title="Ground">GND</span>
+                  <span data-speed-band="low" data-band-limit>&lt;100</span>
+                  <span data-speed-band="mid" data-band-limit>&lt;200</span>
+                  <span data-speed-band="high" data-band-limit>&lt;300</span>
+                  <span data-speed-band="upper" data-band-limit>&lt;400</span>
+                  <span data-speed-band="cruise" data-band-limit>400+</span>
+                </div>
+              </div>
+              <div class="legend-color-key" data-color-key="squawk" role="group" aria-label="Squawk colors">
+                <span>Squawk</span>
+                <div class="legend-values">
+                  <span data-squawk-key="vfr">1200</span>
+                  <span data-squawk-key="other">Other</span>
+                  <span data-squawk-key="special">7500 / 7600 / 7700</span>
+                </div>
+              </div>
+            </div>
+            <div class="scope-compass" role="img" aria-label="North is up"><span aria-hidden="true">N</span><b aria-hidden="true"></b></div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="screen-traffic" class="screen-screen traffic-screen" aria-labelledby="traffic-title" hidden>
+        <header class="page-header">
+          <div><div class="eyebrow" id="traffic-station">KANSAS CITY</div><h1 id="traffic-title">Nearby Traffic</h1><p id="traffic-summary"></p></div>
+        </header>
+        <div class="traffic-board panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th class="traffic-sort-heading" scope="col" aria-sort="descending"><button class="traffic-sort" type="button" data-traffic-sort="time" aria-pressed="true">Time UTC<span class="traffic-sort-indicator" aria-hidden="true">▼</span></button></th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort" type="button" data-traffic-sort="ident" aria-pressed="false">Ident<span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                  <th scope="col">Type</th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort traffic-sort-numeric" type="button" data-traffic-sort="squawk" aria-pressed="false" title="Squawk code"><span>SQK</span><span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort traffic-sort-numeric" type="button" data-traffic-sort="altitude" aria-pressed="false" title="Altitude MSL in hundreds of feet"><span>MSL <small>×100 FT</small></span><span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort traffic-sort-numeric" type="button" data-traffic-sort="altitudeAgl" aria-pressed="false" title="Altitude above the radar center in hundreds of feet"><span>AGL <small>×100 FT</small></span><span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort traffic-sort-numeric" type="button" data-traffic-sort="speed" aria-pressed="false" title="Ground speed in knots"><span>SPD <small>KT</small></span><span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                  <th scope="col">Ground Track</th>
+                  <th class="traffic-sort-heading" scope="col"><button class="traffic-sort traffic-sort-numeric" type="button" data-traffic-sort="distance" aria-pressed="false" title="Range from the monitoring center in nautical miles"><span>RNG <small>NM</small></span><span class="traffic-sort-indicator" aria-hidden="true"></span></button></th>
+                </tr>
+              </thead>
+              <tbody id="traffic-list"></tbody>
+            </table>
+            <p id="traffic-empty" class="table-empty" hidden></p>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-settings" class="screen-screen settings-screen" aria-labelledby="settings-title" hidden>
+        <header class="page-header"><div><div class="eyebrow">AIRWATCH</div><h1 id="settings-title">Settings</h1><p>Set the monitoring location and traffic feed.</p></div></header>
+        <form id="settings-form" class="settings-form">
+          <div class="settings-grid">
+            <fieldset class="panel">
+              <legend>Monitoring location</legend>
+              <label>Airspace preset<select name="artcc" id="artcc-preset"><option value="">No airspace preset</option></select></label>
+              <label>Scope Center
+                <select name="scopeCenter" id="scope-center">
+                  <option value="preset" disabled>Preset default</option>
+                  <option value="custom" selected>Custom coordinates</option>
+                </select>
+              </label>
+              <div class="scope-coordinates">
+                <label id="scope-location-name">Location name<input name="station" maxlength="48" placeholder="Custom location" autocomplete="off"></label>
+                <div class="field-row">
+                  <label>Latitude<input name="lat" type="number" step="any" min="-85.051128" max="85.051128" inputmode="decimal" required></label>
+                  <label>Longitude<input name="lon" type="number" step="any" min="-180" max="180" inputmode="decimal" required></label>
+                </div>
+              </div>
+              <div class="field-row">
+                <label>Radar Range<select name="radius" id="settings-range"></select></label>
+                <label>Ground Traffic<select name="ground"><option value="show">Show</option><option value="hide">Hide</option></select></label>
+              </div>
+              <label>Minimum dBZ
+                <select name="weatherMinDbz" aria-describedby="weather-cutoff-note"><option value="">Off</option></select>
+              </label>
+              <p id="weather-cutoff-note" class="field-note">Hide weather radar returns below this level.</p>
+              <div class="field-row">
+                <div class="opacity-setting">
+                  <label for="label-outline-opacity">Label Outline Opacity</label>
+                  <output id="label-outline-opacity-value" for="label-outline-opacity">70%</output>
+                  <input id="label-outline-opacity" name="labelOutlineOpacity" type="range" min="0" max="100" step="10" value="70" aria-valuetext="70%">
+                </div>
+                <div class="opacity-setting">
+                  <label for="label-background-opacity">Label Background Opacity</label>
+                  <output id="label-background-opacity-value" for="label-background-opacity">90%</output>
+                  <input id="label-background-opacity" name="labelBackgroundOpacity" type="range" min="0" max="100" step="10" value="90" aria-valuetext="90%">
+                </div>
+              </div>
+            </fieldset>
+            <figure class="panel settings-preview" aria-labelledby="settings-preview-title">
+              <figcaption class="panel-header settings-preview-header">
+                <h2 id="settings-preview-title">Radar preview</h2>
+                <span id="settings-preview-caption" aria-live="polite"></span>
+              </figcaption>
+              <div class="settings-preview-frame">
+                <div id="settings-preview-map" role="group" aria-label="Radar map preview with a sample aircraft label" hidden></div>
+                <div id="settings-preview-notice" class="map-notice settings-preview-notice" hidden></div>
+                <p id="settings-preview-empty" class="settings-preview-empty">Enter valid coordinates and choose a range.</p>
+              </div>
+            </figure>
+            <fieldset class="panel">
+              <legend>Traffic Feed</legend>
+              <label>Source<select name="trafficSource" aria-describedby="traffic-source-note"><option value="demo">Demo · simulated aircraft</option></select></label>
+              <p id="traffic-source-note" class="field-note" role="status">Demo runs offline.</p>
+              <label class="check-control"><input type="checkbox" name="newChime"> Chime when a new live aircraft appears</label>
+              <label class="check-control"><input type="checkbox" name="emergencyChime"> Chime for a reported emergency</label>
+            </fieldset>
+          </div>
+          <fieldset class="panel color-settings">
+            <legend>Color Settings</legend>
+            <div id="aircraft-color-settings"></div>
+          </fieldset>
+          <div class="settings-actions"><button class="primary-button" type="submit">Save settings</button><p id="settings-notice" role="status"></p></div>
+        </form>
+      </section>
+    </main>
+
+  </div>
+
+  <dialog id="range-dialog" class="range-dialog" aria-labelledby="range-title">
+    <form method="dialog">
+      <header class="panel-header"><h2 id="range-title">Radar range</h2><button class="text-button" value="cancel">Close</button></header>
+      <div id="range-options" class="range-options"></div>
+    </form>
+  </dialog>
+  <dialog id="coordinate-keypad" class="coordinate-keypad" aria-labelledby="coordinate-keypad-title">
+    <form method="dialog">
+      <header class="panel-header">
+        <h2 id="coordinate-keypad-title">Coordinate</h2>
+        <button class="text-button" type="button" id="coordinate-keypad-cancel">Cancel</button>
+      </header>
+      <div class="coordinate-keypad-body">
+        <input id="coordinate-keypad-entry" type="text" inputmode="none" autocomplete="off" spellcheck="false"
+          aria-labelledby="coordinate-keypad-title" aria-describedby="coordinate-keypad-error" autofocus>
+        <p id="coordinate-keypad-error" class="coordinate-keypad-error" role="status"></p>
+        <div class="coordinate-keys">
+          <button type="button" data-coordinate-key="7">7</button>
+          <button type="button" data-coordinate-key="8">8</button>
+          <button type="button" data-coordinate-key="9">9</button>
+          <button type="button" data-coordinate-key="4">4</button>
+          <button type="button" data-coordinate-key="5">5</button>
+          <button type="button" data-coordinate-key="6">6</button>
+          <button type="button" data-coordinate-key="1">1</button>
+          <button type="button" data-coordinate-key="2">2</button>
+          <button type="button" data-coordinate-key="3">3</button>
+          <button type="button" data-coordinate-key="-" aria-label="Minus">−</button>
+          <button type="button" data-coordinate-key="0">0</button>
+          <button type="button" data-coordinate-key="." aria-label="Decimal point">.</button>
+        </div>
+        <div class="coordinate-keys coordinate-keypad-actions">
+          <button type="button" data-coordinate-key="clear">Clear</button>
+          <button type="button" data-coordinate-key="backspace" aria-label="Backspace">⌫</button>
+          <button class="primary-button" type="submit">Done</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

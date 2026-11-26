@@ -1,0 +1,63 @@
+NOAA ETOPO 2022 surface elevations
+
+Airwatch bundles approximate ground elevation grids for offline use. They
+derive from NOAA NCEI's ETOPO 2022 global ice-surface relief model, distributed
+under CC0. Source horizontal coordinates use WGS 84. Elevations are in meters
+relative to the EGM2008 geoid.
+
+Source documentation
+https://www.ncei.noaa.gov/products/etopo-global-relief-model
+https://doi.org/10.25921/fd45-gt74
+
+The grids use the 60-arc-second NetCDF data served by NOAA ERDDAP. Airwatch
+keeps the native one-minute samples in the U.S. regions below and every fifth
+row and column worldwide. The five-minute global grid is a coarse estimate,
+and even the one-minute regional grids average terrain over an area. Values
+can differ appreciably from local ground elevations, especially around
+coastlines, ridgelines, and narrow valleys.
+
+Download from
+https://oceanwatch.pifsc.noaa.gov/erddap/griddap/ETOPO_2022_v1_60s.nc
+
+The variable is z, with 10,800 latitude and 21,600 longitude samples.
+The global request is z[0:5:10799][0:5:21599]. For a regional grid, request
+z[(south+90)*60:1:(north+90)*60-1][(west mod 360)*60:1:(east mod 360)*60-1],
+evaluating the expressions and percent-encoding the brackets.
+
+U.S. regional grids are concatenated in this order. Bounds are in degrees
+south, north, west, east. Row-major storage starts at the southern edge and
+uses increasing longitude within each row. Each first sample is 1/120 degree
+from the relevant south or west edge, per NOAA's grid registration.
+
+Contiguous United States          24   50  -125   -66
+Alaska                            50   72  -180  -129
+Western Aleutian Islands          50   55   172   180
+Hawaii                            18   23  -161  -154
+Puerto Rico and U.S. Virgin Is.   17   19   -68   -64
+Guam and Northern Mariana Is.     13   21   144   147
+American Samoa                   -15  -11  -173  -169
+
+For the global grid, rotate the incoming longitude axis by 2,160 samples so
+that it starts at 180 W rather than 0. The western and southern first nodes
+retain the source half-minute offset, with subsequent nodes five minutes apart.
+
+The source models seafloor as well as terrain. Airwatch removes offshore
+samples using the Natural Earth land polygons already distributed in
+public/geo/basemap.geojson. Rasterize the polygons and their interior rings
+in sample-coordinate space at four times the output resolution, then sample
+the center of each output cell. Round finite land elevations to whole meters
+and encode them as little-endian signed 16-bit integers. Encode cells outside
+the land mask as -32768 and gzip the result. The endpoint bilinearly
+interpolates available land values and returns no estimate when the nearest
+grid sample is masked. This preserves measured below-sea-level land values
+without using seafloor heights as ground elevations.
+
+Natural Earth land polygons (public domain)
+https://www.naturalearthdata.com/about/terms-of-use/
+See public/geo/SOURCES.md for Airwatch's basemap provenance.
+
+SHA-256 of etopo-2022-5arcmin-land.bin.gz (4,513,304 bytes)
+6ac7b3011b6441ca069ff4274144c05888c2b0addc8e5186acded6614a0d3099
+
+SHA-256 of etopo-2022-us-1arcmin-land.bin.gz (7,711,673 bytes)
+23d565d84c31ee1bfa5f758805ef86f3485c44aa4f4c96bb994ff79c6f97c52a

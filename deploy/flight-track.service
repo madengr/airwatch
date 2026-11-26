@@ -1,0 +1,12 @@
+[Unit]
+Description=Airwatch flight tracking server
+
+[Service]
+WorkingDirectory=%h/.local/share/flight-track
+ExecStart=/usr/bin/node server.mjs
+EnvironmentFile=-%h/.config/flight-track/server.env
+Restart=on-failure
+RestartSec=3s
+
+[Install]
+WantedBy=default.target
